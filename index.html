@@ -56,4 +56,26 @@ window.cloudLogout=async()=>{await signOut(auth)};
 window.cloudUpload=async()=>{if(!user||cloudReady)return;try{const ref=cloudRef();const existing=await getDoc(ref);if(existing.exists()){info('Cloud records already exist. Reload to fetch them; upload was cancelled.');return}if(!confirm('Upload your CURRENT local totals as the initial cloud records? Make sure this is your most up-to-date device.'))return;await setDoc(ref,{state:JSON.parse(JSON.stringify(state)),updatedAt:new Date().toISOString()});info('Initial records uploaded. Starting synchronization.');startListening()}catch(e){info('Upload failed: '+e.message)}};
 function startListening(){if(unsub)unsub();unsub=onSnapshot(cloudRef(),snap=>{if(!snap.exists()){cloudReady=false;pill('● LOCAL');$('uploadBtn').style.display='inline-block';info('No cloud records yet. Upload your latest local records once security rules are configured.');return}const incoming=snap.data().state;if(!incoming||!Array.isArray(incoming.goals)||!Array.isArray(incoming.arts)||!Array.isArray(incoming.logs)){info('Cloud document is not a valid dashboard backup.');return}applying=true;state=incoming;localStorage.setItem(KEY,JSON.stringify(state));render();applying=false;cloudReady=true;$('uploadBtn').style.display='none';pill('● SYNCED');info('Cloud records loaded and synchronized.');},err=>{cloudReady=false;pill('● LOCAL');$('uploadBtn').style.display='none';info('Cloud access unavailable: '+err.message+' — configure owner-only Firestore rules first.')})}
 onAuthStateChanged(auth,u=>{clearTimeout(timer);if(unsub){unsub();unsub=null}user=u;cloudReady=false;$('uploadBtn').style.display='none';$('loginBtn').style.display=u?'none':'inline-block';$('logoutBtn').style.display=u?'inline-block':'none';$('authInfo').textContent=u?'Signed in: '+(u.email||'Google account'):'Not signed in';$('uidInfo').textContent=u?'Your Firebase UID (for security rules): '+u.uid:'';if(u){info('Checking cloud records…');startListening()}else{pill('● LOCAL');info('Sign in to connect cloud records. Local logging still works.')}});
-</script></body></html>
+</script>
+<script>
+const originalRender = render;
+render = function() {
+  if (!state.goals.some(g => g.name === 'Swing Pres')) {
+    state.goals.push({
+      name: 'Swing Pres',
+      count: 0,
+      unit: 'reps',
+      status: 'Untiered',
+      target: 10000
+    });
+    localStorage.setItem(KEY, JSON.stringify(state));
+  }
+  const activity = $('activity');
+  if (!Array.from(activity.options).some(o => o.value === 'goal|Swing Pres')) {
+    activity.add(new Option('Swing Pres (reps)', 'goal|Swing Pres'));
+  }
+  originalRender();
+};
+render();
+</script>
+</body></html>
